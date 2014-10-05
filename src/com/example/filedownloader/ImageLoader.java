@@ -15,17 +15,15 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 
 public class ImageLoader extends AsyncTaskLoader<String> {
 
 	private URL url;
-	public final static int TASK_TASK = 1;
-	public final static int TASK_ERROR = 2;
-	Context context;
-	boolean started = false;
-	InputStream input;
-	OutputStream output;
-	URLConnection conection;
+	private Context context;
+	private InputStream input;
+	private OutputStream output;
+	private URLConnection conection;
 
 	public ImageLoader(Context context) {
 		super(context);
@@ -33,7 +31,8 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 		try {
 			url = new URL(context.getString(R.string.adress));
 		} catch (MalformedURLException e) {
-			sendBroadcast(TASK_ERROR, "incorrect url specification"); // hardcoding
+			sendErrorBroadcast(MainActivity.TASK_ERROR,
+					context.getString(R.string.malformedURLException));
 		}
 	}
 
@@ -43,19 +42,20 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 			return (null);
 		}
 		String path = Environment.getExternalStorageDirectory()
+				+ "/"
 				+ Uri.parse(context.getString(R.string.adress))
 						.getLastPathSegment();
 		input = null;
 		output = null;
 		try {
+			Log.d("MainActivity", path);
 			conection = url.openConnection();
 			conection.connect();
 		} catch (IOException e) {
-			sendBroadcast(TASK_ERROR,
-					"Unable to open connection to the resource"); // hardcoding
-			return null;
+			Log.d("MainActivity", e.getMessage());
+			sendErrorBroadcast(MainActivity.TASK_ERROR,
+					context.getString(R.string.IOException));
 		}
-
 		try {
 			int lenghtOfFile = conection.getContentLength();
 			input = new BufferedInputStream(url.openStream(), 1024);
@@ -67,29 +67,38 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 
 			while ((count = input.read(data)) != -1) {
 				total += count;
-				sendBroadcast(TASK_TASK, ""
-						+ (int) ((total * 100) / lenghtOfFile));
+
+				Intent intent = new Intent(MainActivity.BROADCAST_ACTION);
+				intent.putExtra(MainActivity.EXTRA_TASK, MainActivity.TASK_TASK);
+				intent.putExtra(
+						MainActivity.EXTRA_PROGRESS,
+						Integer.parseInt(""
+								+ (int) ((total * 100) / lenghtOfFile)));
+				LocalBroadcastManager.getInstance(context)
+						.sendBroadcast(intent);
+
 				output.write(data, 0, count);
 			}
 
-		} catch (IOException e) {
-			sendBroadcast(TASK_ERROR, "Unable to write file");// hardcoding
+		} catch (Exception e) {
+			sendErrorBroadcast(MainActivity.TASK_ERROR,
+					context.getString(R.string.fileException));
 			return (null);
 		} finally {
 			try {
-			output.flush();
-			output.close();
-			input.close();
-			}
-			catch (IOException e) {
-				sendBroadcast(TASK_ERROR, "An error occurs while working whis stream");// hardcoding
+				output.flush();
+				output.close();
+				input.close();
+			} catch (IOException e) {
+				sendErrorBroadcast(MainActivity.TASK_ERROR,
+						context.getString(R.string.fileException));
 				return null;
 			}
 		}
 		return (path);
 	}
 
-	private void sendBroadcast(int param, String message) {
+	private void sendErrorBroadcast(int param, String message) {
 		Intent intent = new Intent(MainActivity.BROADCAST_ACTION);
 		intent.putExtra(MainActivity.EXTRA_TASK, param);
 		intent.putExtra(MainActivity.EXTRA_ERROR, message);

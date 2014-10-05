@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Task2</string>
+    <string name="app_name">FileDownloader</string>
     <string name="idle">Idle</string>
     <string name="downloading">Downloading</string>
     <string name="downloaded">Downloaded</string>
@@ -9,8 +9,12 @@
     <string name="status">Status: </string>
     <string name="error">error</string>
     <string name="progress">progress</string>
-    <string name="adress">http://cs618030.vk.me/v618030699/18ac8/mDmrFgOwqFg.jpg</string>
+    <string name="adress">http://cs540107.vk.me/c540105/v540105996/52ed1/6nAvQlvkShk.jpg</string>
     <string name="open">Open</string>
+    <string name="malformedURLException">Incorrect url specification</string>
+    <string name="IOException">Unable to open connection to the resource</string>
+    <string name="fileException">An error occurs while working with stream</string>
+
 
 
 </resources>
