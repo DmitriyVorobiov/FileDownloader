@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">FileDownloader</string>
-    <string name="hello_world">Hello world!</string>
+    <string name="app_name">Task2</string>
+    <string name="idle">Idle</string>
+    <string name="downloading">Downloading</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="download">Download</string>
+    <string name="status">Status: </string>
+    <string name="error">error</string>
+    <string name="progress">progress</string>
+    <string name="adress">http://cs618030.vk.me/v618030699/18ac8/mDmrFgOwqFg.jpg</string>
+    <string name="open">Open</string>
+
 
 </resources>
