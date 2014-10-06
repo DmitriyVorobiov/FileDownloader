@@ -29,6 +29,9 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 	protected final static String EXTRA_ERROR = "error";
 	protected final static int TASK_TASK = 1;
 	protected final static int TASK_ERROR = 2;
+	private final String VISIBILITY = "visibility";
+	private final String AVAILABILITY = "enable";
+	private final String STATUS = "status";
 	private int visibility;
 	private boolean buttonIsEnabled;
 	private ProgressBar progressBar;
@@ -52,11 +55,11 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 			visibility = ProgressBar.INVISIBLE;
 			statLabel.setText(R.string.idle);
 		} else {
-			visibility = savedInstanceState.getInt("vis");
-			buttonIsEnabled = savedInstanceState.getBoolean("en");
+			visibility = savedInstanceState.getInt(VISIBILITY);
+			buttonIsEnabled = savedInstanceState.getBoolean(AVAILABILITY);
 			progressBar.setVisibility(visibility);
 			button.setEnabled(buttonIsEnabled);
-			String status = savedInstanceState.getString("status");
+			String status = savedInstanceState.getString(STATUS);
 			statLabel.setText(status);
 		}
 
@@ -114,9 +117,9 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
-		outState.putInt("vis", visibility);
-		outState.putBoolean("en", buttonIsEnabled);
-		outState.putString("status", statLabel.getText().toString());
+		outState.putInt(VISIBILITY, visibility);
+		outState.putBoolean(AVAILABILITY, buttonIsEnabled);
+		outState.putString(STATUS, statLabel.getText().toString());
 	}
 
 	public void openFile(String path) {

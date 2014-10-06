@@ -15,7 +15,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 public class ImageLoader extends AsyncTaskLoader<String> {
 
@@ -36,6 +35,9 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 		}
 	}
 
+	/**
+	 * Returns path, if downloading was successful, else returns null
+	 */
 	@Override
 	public String loadInBackground() {
 		if (url == null) {
@@ -48,11 +50,9 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 		input = null;
 		output = null;
 		try {
-			Log.d("MainActivity", path);
 			conection = url.openConnection();
 			conection.connect();
 		} catch (IOException e) {
-			Log.d("MainActivity", e.getMessage());
 			sendErrorBroadcast(MainActivity.TASK_ERROR,
 					context.getString(R.string.IOException));
 		}
