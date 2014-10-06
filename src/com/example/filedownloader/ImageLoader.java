@@ -55,6 +55,7 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 		} catch (IOException e) {
 			sendErrorBroadcast(MainActivity.TASK_ERROR,
 					context.getString(R.string.IOException));
+			return (null);
 		}
 		try {
 			int lenghtOfFile = conection.getContentLength();
