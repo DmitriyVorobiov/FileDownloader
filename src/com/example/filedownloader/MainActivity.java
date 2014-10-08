@@ -2,6 +2,7 @@ package com.example.filedownloader;
 
 import java.io.File;
 
+import android.R;
 import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.BroadcastReceiver;
@@ -43,9 +44,11 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		fileName = Uri.parse(getString(R.string.adress)).getLastPathSegment();
-		getLoaderManager().initLoader(LOADER_ID, null, this);
 		setContentView(R.layout.activity_main);
+
+		getLoaderManager().initLoader(LOADER_ID, null, this);
+
+		fileName = Uri.parse(getString(R.string.adress)).getLastPathSegment();
 		progressBar = (ProgressBar) findViewById(R.id.progressBar);
 		statLabel = (TextView) findViewById(R.id.statusLabel);
 		button = (Button) findViewById(R.id.button);
@@ -55,6 +58,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 			visibility = ProgressBar.INVISIBLE;
 			statLabel.setText(R.string.idle);
 		} else {
+			//Этого ничего не надо - андроид сам запоминает состояние контролов в savedInstanceState
 			visibility = savedInstanceState.getInt(VISIBILITY);
 			buttonIsEnabled = savedInstanceState.getBoolean(AVAILABILITY);
 			progressBar.setVisibility(visibility);
@@ -66,11 +70,14 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 		File extStore = Environment.getExternalStorageDirectory();
 		File file = new File(extStore.getAbsolutePath(), fileName);
 		if (file.exists()) {
-			button.setText(getResources().getString(R.string.open));
+			button.setText(getResources().getString(R.string.open)); //пойдет и просто button.setText(R.string.open);
 			statLabel.setText(R.string.downloaded);
+
+			//в целом плохо, что setOnClickListener сетится в нескольких местах 
 			button.setOnClickListener(new OnClickListener() {
 
-				public void onClick(View v) {
+				@Override
+                public void onClick(View v) {
 					openFile(Environment.getExternalStorageDirectory() + "/"
 							+ fileName);
 
@@ -81,11 +88,13 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 
 		button.setOnClickListener(new OnClickListener() {
 
-			public void onClick(View v) {
+			@Override
+            public void onClick(View v) {
 				startLoading();
 			}
 		});
 
+		//можно обойтись и без броадкастов
 		broadcastReceiver = new BroadcastReceiver() {
 
 			@Override
@@ -115,8 +124,10 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 
 	}
 
-	protected void onSaveInstanceState(Bundle outState) {
+	@Override
+    protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
+		//Этого ничего не надо - андроид сам запоминает состояние контролов в savedInstanceState
 		outState.putInt(VISIBILITY, visibility);
 		outState.putBoolean(AVAILABILITY, buttonIsEnabled);
 		outState.putString(STATUS, statLabel.getText().toString());
@@ -130,7 +141,8 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 		startActivity(intent);
 	}
 
-	public Loader<String> onCreateLoader(int id, Bundle args) {
+	@Override
+    public Loader<String> onCreateLoader(int id, Bundle args) {
 		ImageLoader loader = null;
 		if (id == LOADER_ID) {
 			loader = new ImageLoader(this);
@@ -144,13 +156,16 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 		buttonIsEnabled = false;
 		button.setEnabled(buttonIsEnabled);
 		statLabel.setText(R.string.downloading);
+
+		//http://www.androiddesignpatterns.com/2012/08/implementing-loaders.html
 		Loader<String> loader;
 		loader = getLoaderManager().getLoader(LOADER_ID);
 		loader = getLoaderManager().restartLoader(LOADER_ID, null, this);
 		loader.forceLoad();
 	}
 
-	public void onLoadFinished(Loader<String> loader, final String result) {
+	@Override
+    public void onLoadFinished(Loader<String> loader, final String result) {
 		if (result == null) {
 			return;
 		}
@@ -162,13 +177,15 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 		statLabel.setText(R.string.downloaded);
 		button.setOnClickListener(new OnClickListener() {
 
-			public void onClick(View v) {
+			@Override
+            public void onClick(View v) {
 				openFile(result);
 			}
 		});
 	}
 
-	public void onLoaderReset(Loader<String> arg0) {
+	@Override
+    public void onLoaderReset(Loader<String> arg0) {
 		// TODO Auto-generated method stub
 
 	}
