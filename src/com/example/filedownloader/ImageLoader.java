@@ -9,6 +9,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 
+import android.R;
 import android.content.AsyncTaskLoader;
 import android.content.Context;
 import android.content.Intent;
@@ -28,6 +29,7 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 		super(context);
 		this.context = context;
 		try {
+			//плохо. Урл должен передаваться в аргументах к лоадеру. Только это надо делать правильно.
 			url = new URL(context.getString(R.string.adress));
 		} catch (MalformedURLException e) {
 			sendErrorBroadcast(MainActivity.TASK_ERROR,
@@ -69,6 +71,8 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 			while ((count = input.read(data)) != -1) {
 				total += count;
 
+				//1. мне не нравится, что этот кусок не выделен в отдельный метод.
+				//2. можно вообще обойтись без броадкастов
 				Intent intent = new Intent(MainActivity.BROADCAST_ACTION);
 				intent.putExtra(MainActivity.EXTRA_TASK, MainActivity.TASK_TASK);
 				intent.putExtra(
