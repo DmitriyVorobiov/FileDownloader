@@ -2,6 +2,7 @@ package com.example.filedownloader;
 
 import java.io.File;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.Intent;
@@ -69,9 +70,10 @@ public class MainActivity extends Activity implements LoaderCallbacks<Void>,
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
 	}
-	
+
+	@SuppressLint("HandlerLeak")
 	private void initHandler() {
-		// to avoid leaks i create handler once
+		// to avoid memory leaks i create handler only once
 		handler = new Handler() {
 
 			@Override
@@ -111,8 +113,8 @@ public class MainActivity extends Activity implements LoaderCallbacks<Void>,
 					Toast.makeText(getApplicationContext(), error,
 							Toast.LENGTH_LONG).show();
 
-					loader = getLoaderManager().restartLoader(LOADER_ID,
-							new Bundle(), MainActivity.this);
+					loader = getLoaderManager().restartLoader(LOADER_ID, null,
+							MainActivity.this);
 
 					this.sendEmptyMessage(ImageLoader.STATUS_IDLE);
 				}
