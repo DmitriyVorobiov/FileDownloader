@@ -9,59 +9,68 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 
-import android.R;
 import android.content.AsyncTaskLoader;
 import android.content.Context;
-import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
-import android.support.v4.content.LocalBroadcastManager;
+import android.os.Handler;
+import android.os.Message;
 
-public class ImageLoader extends AsyncTaskLoader<String> {
+public class ImageLoader extends AsyncTaskLoader<Void> {
 
 	private URL url;
+	protected static String URL = "url";
+	protected final static int STATUS_ERROR = -1;
+	protected final static int STATUS_IDLE = 0;
+	protected final static int STATUS_DOWNLOADING = 1;
+	protected final static int STATUS_DOWNLOADED = 2;
+	protected final static String ERROR = "error";
+	protected final static String PROGRESS = "progress";
 	private Context context;
 	private InputStream input;
 	private OutputStream output;
 	private URLConnection conection;
+	private Handler handler;
+	private int currentProgress;
+	private int status;
+	private String path;
+	private String errorMessage;
 
-	public ImageLoader(Context context) {
+	public ImageLoader(Context context, Bundle args, Handler headHandler) {
 		super(context);
 		this.context = context;
+		this.handler = headHandler;
 		try {
-			//плохо. Урл должен передаваться в аргументах к лоадеру. Только это надо делать правильно.
-			url = new URL(context.getString(R.string.adress));
+			url = new URL(args.getString(URL));
+			path = Environment.getExternalStorageDirectory() + "/"
+					+ Uri.parse(args.getString(URL)).getLastPathSegment();
 		} catch (MalformedURLException e) {
-			sendErrorBroadcast(MainActivity.TASK_ERROR,
-					context.getString(R.string.malformedURLException));
+			errorMessage = context.getString(R.string.malformedURLException);
+			sendMessage(STATUS_ERROR, errorMessage, ERROR);
 		}
 	}
 
-	/**
-	 * Returns path, if downloading was successful, else returns null
-	 */
 	@Override
-	public String loadInBackground() {
+	public Void loadInBackground() {
+		status = STATUS_DOWNLOADING;
 		if (url == null) {
 			return (null);
 		}
-		String path = Environment.getExternalStorageDirectory()
-				+ "/"
-				+ Uri.parse(context.getString(R.string.adress))
-						.getLastPathSegment();
 		input = null;
 		output = null;
 		try {
 			conection = url.openConnection();
 			conection.connect();
 		} catch (IOException e) {
-			sendErrorBroadcast(MainActivity.TASK_ERROR,
-					context.getString(R.string.IOException));
-			return (null);
+			errorMessage = context.getString(R.string.IOException);
+			sendMessage(STATUS_ERROR, errorMessage, ERROR);
+			return null;
 		}
 		try {
 			int lenghtOfFile = conection.getContentLength();
 			input = new BufferedInputStream(url.openStream(), 1024);
+
 			output = new FileOutputStream(path);
 
 			long total = 0;
@@ -69,25 +78,16 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 			byte data[] = new byte[1024];
 
 			while ((count = input.read(data)) != -1) {
+				currentProgress = (int) (100d * total / lenghtOfFile);
 				total += count;
-
-				//1. мне не нравится, что этот кусок не выделен в отдельный метод.
-				//2. можно вообще обойтись без броадкастов
-				Intent intent = new Intent(MainActivity.BROADCAST_ACTION);
-				intent.putExtra(MainActivity.EXTRA_TASK, MainActivity.TASK_TASK);
-				intent.putExtra(
-						MainActivity.EXTRA_PROGRESS,
-						Integer.parseInt(""
-								+ (int) ((total * 100) / lenghtOfFile)));
-				LocalBroadcastManager.getInstance(context)
-						.sendBroadcast(intent);
-
+				sendMessage(STATUS_DOWNLOADING,
+						String.valueOf(currentProgress), PROGRESS);
 				output.write(data, 0, count);
 			}
 
 		} catch (Exception e) {
-			sendErrorBroadcast(MainActivity.TASK_ERROR,
-					context.getString(R.string.fileException));
+			errorMessage = context.getString(R.string.fileException);
+			sendMessage(STATUS_ERROR, errorMessage, ERROR);
 			return (null);
 		} finally {
 			try {
@@ -95,18 +95,31 @@ public class ImageLoader extends AsyncTaskLoader<String> {
 				output.close();
 				input.close();
 			} catch (IOException e) {
-				sendErrorBroadcast(MainActivity.TASK_ERROR,
-						context.getString(R.string.fileException));
+				errorMessage = context.getString(R.string.fileException);
+				sendMessage(STATUS_ERROR, errorMessage, ERROR);
 				return null;
 			}
 		}
-		return (path);
+		handler.sendEmptyMessage(STATUS_DOWNLOADED);
+		status = STATUS_DOWNLOADED;
+		return null;
 	}
 
-	private void sendErrorBroadcast(int param, String message) {
-		Intent intent = new Intent(MainActivity.BROADCAST_ACTION);
-		intent.putExtra(MainActivity.EXTRA_TASK, param);
-		intent.putExtra(MainActivity.EXTRA_ERROR, message);
-		LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+	private void sendMessage(int what, String data, String key) {
+		String sendingData = data;
+		Message message = new Message();
+		Bundle bundle = new Bundle();
+		bundle.putString(key, sendingData);
+		message.setData(bundle);
+		message.what = what;
+		handler.sendMessage(message);
+	}
+
+	protected int getStatus() {
+		return status;
+	}
+
+	protected void setHandler(Handler handler) {
+		this.handler = handler;
 	}
 }

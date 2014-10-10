@@ -2,18 +2,15 @@ package com.example.filedownloader;
 
 import java.io.File;
 
-import android.R;
 import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.Loader;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.v4.content.LocalBroadcastManager;
+import android.os.Handler;
+import android.os.Message;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
@@ -21,116 +18,114 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends Activity implements LoaderCallbacks<String> {
+public class MainActivity extends Activity implements LoaderCallbacks<Void>,
+		OnClickListener {
 
 	private static final int LOADER_ID = 1;
-	protected final static String BROADCAST_ACTION = "FileDownloader";
-	protected final static String EXTRA_TASK = "task";
-	protected final static String EXTRA_PROGRESS = "progress";
-	protected final static String EXTRA_ERROR = "error";
-	protected final static int TASK_TASK = 1;
-	protected final static int TASK_ERROR = 2;
-	private final String VISIBILITY = "visibility";
-	private final String AVAILABILITY = "enable";
-	private final String STATUS = "status";
-	private int visibility;
-	private boolean buttonIsEnabled;
+	private int STATUS;
 	private ProgressBar progressBar;
 	private TextView statLabel;
-	private BroadcastReceiver broadcastReceiver;
 	private Button button;
-	private String fileName;
+	private Handler handler;
+	private String path;
+	private Loader<Void> loader;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		getLoaderManager().initLoader(LOADER_ID, null, this);
-
-		fileName = Uri.parse(getString(R.string.adress)).getLastPathSegment();
 		progressBar = (ProgressBar) findViewById(R.id.progressBar);
 		statLabel = (TextView) findViewById(R.id.statusLabel);
 		button = (Button) findViewById(R.id.button);
+		button.setOnClickListener(this);
+		progressBar.setVisibility(ProgressBar.INVISIBLE);
+		path = Environment.getExternalStorageDirectory() + "/"
+				+ Uri.parse(getString(R.string.adress)).getLastPathSegment();
 
-		if (savedInstanceState == null) {
-			buttonIsEnabled = true;
-			visibility = ProgressBar.INVISIBLE;
-			statLabel.setText(R.string.idle);
-		} else {
-			//Этого ничего не надо - андроид сам запоминает состояние контролов в savedInstanceState
-			visibility = savedInstanceState.getInt(VISIBILITY);
-			buttonIsEnabled = savedInstanceState.getBoolean(AVAILABILITY);
-			progressBar.setVisibility(visibility);
-			button.setEnabled(buttonIsEnabled);
-			String status = savedInstanceState.getString(STATUS);
-			statLabel.setText(status);
-		}
+		// checked to avoid leaks
+		if (handler == null)
+			initHandler();
 
 		File extStore = Environment.getExternalStorageDirectory();
-		File file = new File(extStore.getAbsolutePath(), fileName);
+		File file = new File(extStore.getAbsolutePath(), Uri.parse(
+				getString(R.string.adress)).getLastPathSegment());
 		if (file.exists()) {
-			button.setText(getResources().getString(R.string.open)); //пойдет и просто button.setText(R.string.open);
-			statLabel.setText(R.string.downloaded);
-
-			//в целом плохо, что setOnClickListener сетится в нескольких местах 
-			button.setOnClickListener(new OnClickListener() {
-
-				@Override
-                public void onClick(View v) {
-					openFile(Environment.getExternalStorageDirectory() + "/"
-							+ fileName);
-
-				}
-			});
+			handler.sendEmptyMessage(ImageLoader.STATUS_DOWNLOADED);
 			return;
 		}
 
-		button.setOnClickListener(new OnClickListener() {
-
-			@Override
-            public void onClick(View v) {
-				startLoading();
-			}
-		});
-
-		//можно обойтись и без броадкастов
-		broadcastReceiver = new BroadcastReceiver() {
-
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				int task = intent.getIntExtra(EXTRA_TASK, 0);
-				int progress = intent.getIntExtra(EXTRA_PROGRESS, 0);
-
-				if (task == TASK_TASK) {
-					progressBar.setProgress(progress);
-				}
-
-				if (task == TASK_ERROR) {
-					statLabel.setText(R.string.idle);
-					visibility = ProgressBar.INVISIBLE;
-					progressBar.setVisibility(visibility);
-					buttonIsEnabled = true;
-					button.setEnabled(buttonIsEnabled);
-					String error = intent.getStringExtra(EXTRA_ERROR);
-					Toast.makeText(getApplicationContext(), error,
-							Toast.LENGTH_LONG).show();
-				}
-			}
-
-		};
-		LocalBroadcastManager.getInstance(this).registerReceiver(
-				broadcastReceiver, new IntentFilter(BROADCAST_ACTION));
+		getLoaderManager().initLoader(LOADER_ID, null, this);
+		if (loader == null) {
+			loader = getLoaderManager().getLoader(LOADER_ID);
+			((ImageLoader) loader).setHandler(handler);
+		}
+		STATUS = ((ImageLoader) loader).getStatus();
+		handler.sendEmptyMessage(STATUS);
 
 	}
 
 	@Override
-    protected void onSaveInstanceState(Bundle outState) {
+	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
-		//Этого ничего не надо - андроид сам запоминает состояние контролов в savedInstanceState
-		outState.putInt(VISIBILITY, visibility);
-		outState.putBoolean(AVAILABILITY, buttonIsEnabled);
-		outState.putString(STATUS, statLabel.getText().toString());
+	}
+	
+	private void initHandler() {
+		// to avoid leaks i create handler once
+		handler = new Handler() {
+
+			@Override
+			public void handleMessage(Message msg) {
+				super.handleMessage(msg);
+				STATUS = msg.what;
+				switch (STATUS) {
+				case ImageLoader.STATUS_IDLE: {
+					button.setEnabled(true);
+					button.setText(R.string.download);
+					progressBar.setVisibility(ProgressBar.INVISIBLE);
+					statLabel.setText(R.string.idle);
+				}
+					break;
+				case ImageLoader.STATUS_DOWNLOADING: {
+
+					int progress = Integer.parseInt(msg.getData().getString(
+							ImageLoader.PROGRESS));
+					progressBar.setVisibility(ProgressBar.VISIBLE);
+					progressBar.setProgress(progress);
+					button.setEnabled(false);
+					statLabel.setText(R.string.downloading);
+				}
+					break;
+
+				case ImageLoader.STATUS_DOWNLOADED: {
+					progressBar.setVisibility(ProgressBar.INVISIBLE);
+					button.setEnabled(true);
+					button.setText(R.string.open);
+					statLabel.setText(R.string.downloaded);
+
+				}
+					break;
+
+				case ImageLoader.STATUS_ERROR: {
+					String error = msg.getData().getString(ImageLoader.ERROR);
+					Toast.makeText(getApplicationContext(), error,
+							Toast.LENGTH_LONG).show();
+
+					loader = getLoaderManager().restartLoader(LOADER_ID,
+							new Bundle(), MainActivity.this);
+
+					this.sendEmptyMessage(ImageLoader.STATUS_IDLE);
+				}
+					break;
+				}
+			}
+
+		};
+	}
+
+	@Override
+	protected void onDestroy() {
+		super.onDestroy();
 	}
 
 	public void openFile(String path) {
@@ -141,53 +136,29 @@ public class MainActivity extends Activity implements LoaderCallbacks<String> {
 		startActivity(intent);
 	}
 
-	@Override
-    public Loader<String> onCreateLoader(int id, Bundle args) {
-		ImageLoader loader = null;
-		if (id == LOADER_ID) {
-			loader = new ImageLoader(this);
-		}
+	public Loader<Void> onCreateLoader(int id, Bundle args) {
+		Bundle bundle = new Bundle();
+		bundle.putString(ImageLoader.URL, getString(R.string.adress));
+		loader = new ImageLoader(this, bundle, handler);
 		return loader;
 	}
 
-	public void startLoading() {
-		visibility = ProgressBar.VISIBLE;
-		progressBar.setVisibility(visibility);
-		buttonIsEnabled = false;
-		button.setEnabled(buttonIsEnabled);
-		statLabel.setText(R.string.downloading);
-
-		//http://www.androiddesignpatterns.com/2012/08/implementing-loaders.html
-		Loader<String> loader;
-		loader = getLoaderManager().getLoader(LOADER_ID);
-		loader = getLoaderManager().restartLoader(LOADER_ID, null, this);
-		loader.forceLoad();
-	}
-
-	@Override
-    public void onLoadFinished(Loader<String> loader, final String result) {
-		if (result == null) {
-			return;
+	public void onClick(View v) {
+		switch (STATUS) {
+		case (ImageLoader.STATUS_IDLE): {
+			loader.forceLoad();
 		}
-		visibility = ProgressBar.INVISIBLE;
-		progressBar.setVisibility(visibility);
-		buttonIsEnabled = true;
-		button.setEnabled(true);
-		button.setText(getResources().getString(R.string.open));
-		statLabel.setText(R.string.downloaded);
-		button.setOnClickListener(new OnClickListener() {
-
-			@Override
-            public void onClick(View v) {
-				openFile(result);
-			}
-		});
+			break;
+		case (ImageLoader.STATUS_DOWNLOADED): {
+			openFile(path);
+		}
+			break;
+		}
 	}
 
-	@Override
-    public void onLoaderReset(Loader<String> arg0) {
-		// TODO Auto-generated method stub
-
+	public void onLoaderReset(Loader<Void> arg0) {
 	}
 
+	public void onLoadFinished(Loader<Void> arg0, Void arg1) {
+	}
 }

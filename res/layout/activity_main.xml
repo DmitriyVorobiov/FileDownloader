@@ -34,6 +34,7 @@
            android:layout_alignLeft="@+id/button"
            android:layout_alignParentTop="true"
            android:layout_marginTop="104dp"
-           android:text="@string/status" />
+           android:text="@string/status"
+           android:textSize="20sp" />
 
 </RelativeLayout>
