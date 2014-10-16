@@ -1,8 +1,9 @@
 package com.example.filedownloader;
 
 import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URL;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.Intent;
@@ -19,17 +20,18 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class MainActivity extends Activity implements LoaderCallbacks<Void>,
+public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 		OnClickListener {
 
 	private static final int LOADER_ID = 1;
-	private int STATUS;
 	private ProgressBar progressBar;
 	private TextView statLabel;
 	private Button button;
-	private Handler handler;
 	private String path;
-	private Loader<Void> loader;
+	private Loader<Bundle> loader;
+	private boolean downloaded = false;
+	private Handler handler;
+	private URL url;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -40,94 +42,39 @@ public class MainActivity extends Activity implements LoaderCallbacks<Void>,
 		statLabel = (TextView) findViewById(R.id.statusLabel);
 		button = (Button) findViewById(R.id.button);
 		button.setOnClickListener(this);
-		progressBar.setVisibility(ProgressBar.INVISIBLE);
+
 		path = Environment.getExternalStorageDirectory() + "/"
 				+ Uri.parse(getString(R.string.adress)).getLastPathSegment();
 
-		// checked to avoid leaks
-		if (handler == null)
-			initHandler();
-
-		File extStore = Environment.getExternalStorageDirectory();
-		File file = new File(extStore.getAbsolutePath(), Uri.parse(
-				getString(R.string.adress)).getLastPathSegment());
+		File file = new File(Environment.getExternalStorageDirectory()
+				.getAbsolutePath(), Uri.parse(getString(R.string.adress))
+				.getLastPathSegment());
 		if (file.exists()) {
-			handler.sendEmptyMessage(ImageLoader.STATUS_DOWNLOADED);
+			progressBar.setVisibility(ProgressBar.INVISIBLE);
+			button.setEnabled(true);
+			button.setText(R.string.open);
+			statLabel.setText(R.string.downloaded);
+			downloaded = true;
 			return;
 		}
 
-		getLoaderManager().initLoader(LOADER_ID, null, this);
-		if (loader == null) {
-			loader = getLoaderManager().getLoader(LOADER_ID);
-			((ImageLoader) loader).setHandler(handler);
-		}
-		STATUS = ((ImageLoader) loader).getStatus();
-		handler.sendEmptyMessage(STATUS);
+		progressBar.setVisibility(ProgressBar.INVISIBLE);
+		button.setText(R.string.download);
+		progressBar.setVisibility(ProgressBar.INVISIBLE);
+		statLabel.setText(R.string.idle);
 
-	}
-
-	@Override
-	protected void onSaveInstanceState(Bundle outState) {
-		super.onSaveInstanceState(outState);
-	}
-
-	@SuppressLint("HandlerLeak")
-	private void initHandler() {
-		// to avoid memory leaks i create handler only once
 		handler = new Handler() {
-
 			@Override
 			public void handleMessage(Message msg) {
 				super.handleMessage(msg);
-				STATUS = msg.what;
-				switch (STATUS) {
-				case ImageLoader.STATUS_IDLE: {
-					button.setEnabled(true);
-					button.setText(R.string.download);
-					progressBar.setVisibility(ProgressBar.INVISIBLE);
-					statLabel.setText(R.string.idle);
-				}
-					break;
-				case ImageLoader.STATUS_DOWNLOADING: {
-
-					int progress = Integer.parseInt(msg.getData().getString(
-							ImageLoader.PROGRESS));
-					progressBar.setVisibility(ProgressBar.VISIBLE);
-					progressBar.setProgress(progress);
-					button.setEnabled(false);
-					statLabel.setText(R.string.downloading);
-				}
-					break;
-
-				case ImageLoader.STATUS_DOWNLOADED: {
-					progressBar.setVisibility(ProgressBar.INVISIBLE);
-					button.setEnabled(true);
-					button.setText(R.string.open);
-					statLabel.setText(R.string.downloaded);
-
-				}
-					break;
-
-				case ImageLoader.STATUS_ERROR: {
-					String error = msg.getData().getString(ImageLoader.ERROR);
-					Toast.makeText(getApplicationContext(), error,
-							Toast.LENGTH_LONG).show();
-
-					loader = getLoaderManager().restartLoader(LOADER_ID, null,
-							MainActivity.this);
-
-					this.sendEmptyMessage(ImageLoader.STATUS_IDLE);
-				}
-					break;
-				}
+				int progress = msg.what;
+				progressBar.setVisibility(ProgressBar.VISIBLE);
+				progressBar.setProgress(progress);
+				button.setEnabled(false);
+				statLabel.setText(R.string.downloading);
 			}
-
 		};
-	}
 
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
 	}
 
 	public void openFile(String path) {
@@ -138,29 +85,67 @@ public class MainActivity extends Activity implements LoaderCallbacks<Void>,
 		startActivity(intent);
 	}
 
-	public Loader<Void> onCreateLoader(int id, Bundle args) {
-		Bundle bundle = new Bundle();
-		bundle.putString(ImageLoader.URL, getString(R.string.adress));
-		loader = new ImageLoader(this, bundle, handler);
+	@Override
+	public Loader<Bundle> onCreateLoader(int id, Bundle args) {
+		loader = new ImageLoader(this, url);
 		return loader;
 	}
 
 	public void onClick(View v) {
-		switch (STATUS) {
-		case (ImageLoader.STATUS_IDLE): {
-			loader.forceLoad();
-		}
-			break;
-		case (ImageLoader.STATUS_DOWNLOADED): {
+		if (!downloaded) {
+			try {
+				url = new URL(getString(R.string.adress));
+			} catch (MalformedURLException e) {
+				Toast.makeText(getApplicationContext(),
+						getString(R.string.malformedURLException),
+						Toast.LENGTH_LONG).show();
+				return;
+			}
+			loader = getLoaderManager().initLoader(LOADER_ID, null, this);
+		} else
 			openFile(path);
-		}
-			break;
-		}
 	}
 
-	public void onLoaderReset(Loader<Void> arg0) {
+	@Override
+	public void onLoaderReset(Loader<Bundle> arg0) {
 	}
 
-	public void onLoadFinished(Loader<Void> arg0, Void arg1) {
+	@Override
+	public void onLoadFinished(Loader<Bundle> arg0, Bundle msg) {
+		String response = msg.getString(ImageLoader.RESULT_TYPE);
+		switch (response) {
+		case ImageLoader.PROGRESS: {
+
+			int progress = msg.getInt(ImageLoader.PROGRESS);
+			if (progress == ImageLoader.STATUS_FINISHED) {
+				progressBar.setVisibility(ProgressBar.INVISIBLE);
+				button.setEnabled(true);
+				button.setText(R.string.open);
+				statLabel.setText(R.string.downloaded);
+				downloaded = true;
+				return;
+			}
+			handler.sendEmptyMessage(progress);
+			return;
+		}
+
+		case ImageLoader.ERROR: {
+
+			File file = new File(Environment.getExternalStorageDirectory()
+					.getAbsolutePath(), Uri.parse(getString(R.string.adress))
+					.getLastPathSegment());
+			if (file.exists()) {
+				file.delete();
+			}
+			Toast.makeText(getApplicationContext(),
+					msg.getString(ImageLoader.ERROR), Toast.LENGTH_LONG).show();
+			button.setEnabled(true);
+			button.setText(R.string.download);
+			progressBar.setVisibility(ProgressBar.INVISIBLE);
+			statLabel.setText(R.string.idle);
+			return;
+		}
+
+		}
 	}
 }

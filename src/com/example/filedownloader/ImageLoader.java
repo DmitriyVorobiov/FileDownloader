@@ -5,7 +5,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 
@@ -14,112 +13,99 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
 
-public class ImageLoader extends AsyncTaskLoader<Void> {
+public class ImageLoader extends AsyncTaskLoader<Bundle> {
 
-	private URL url;
-	protected static String URL = "url";
-	protected final static int STATUS_ERROR = -1;
-	protected final static int STATUS_IDLE = 0;
-	protected final static int STATUS_DOWNLOADING = 1;
-	protected final static int STATUS_DOWNLOADED = 2;
+	protected final static String URL = "url";
+	protected final static String RESULT_TYPE = "result";
+	protected final static int STATUS_FINISHED = 101;
 	protected final static String ERROR = "error";
 	protected final static String PROGRESS = "progress";
 	private Context context;
+	private URL url;
 	private InputStream input;
 	private OutputStream output;
-	private URLConnection conection;
-	private Handler handler;
+	private URLConnection connection;
 	private int currentProgress;
-	private int status;
 	private String path;
-	private String errorMessage;
 
-	public ImageLoader(Context context, Bundle args, Handler headHandler) {
+	public ImageLoader(Context context, URL url) {
 		super(context);
 		this.context = context;
-		this.handler = headHandler;
-		try {
-			url = new URL(args.getString(URL));
-			path = Environment.getExternalStorageDirectory() + "/"
-					+ Uri.parse(args.getString(URL)).getLastPathSegment();
-		} catch (MalformedURLException e) {
-			errorMessage = context.getString(R.string.malformedURLException);
-			sendMessage(STATUS_ERROR, errorMessage, ERROR);
-		}
+		this.url = url;
+		path = Environment.getExternalStorageDirectory() + "/"
+				+ Uri.parse(url.toString()).getLastPathSegment();
+
+	}
+
+	private void sendProgress(int progress) {
+		Bundle bndl = new Bundle();
+		bndl.putString(RESULT_TYPE, PROGRESS);
+		bndl.putInt(PROGRESS, progress);
+		deliverResult(bndl);
 	}
 
 	@Override
-	public Void loadInBackground() {
-		status = STATUS_DOWNLOADING;
-		if (url == null) {
-			return (null);
-		}
+	public Bundle loadInBackground() {
 		input = null;
 		output = null;
+		Bundle result = new Bundle();
 		try {
-			conection = url.openConnection();
-			conection.connect();
+			connection = url.openConnection();
+			connection.connect();
 		} catch (IOException e) {
-			errorMessage = context.getString(R.string.IOException);
-			sendMessage(STATUS_ERROR, errorMessage, ERROR);
-			return null;
+			result.putString(RESULT_TYPE, ERROR);
+			result.putString(ERROR,
+					context.getResources().getString(R.string.IOException));
+			return result;
 		}
 		try {
-			int lenghtOfFile = conection.getContentLength();
+			int lenghtOfFile = connection.getContentLength();
 			input = new BufferedInputStream(url.openStream(), 1024);
-
 			output = new FileOutputStream(path);
-
 			long total = 0;
 			int count;
-			byte data[] = new byte[1024];
-
+			byte data[] = new byte[1024 * 4];
 			while ((count = input.read(data)) != -1) {
 				currentProgress = (int) (100d * total / lenghtOfFile);
 				total += count;
-				sendMessage(STATUS_DOWNLOADING,
-						String.valueOf(currentProgress), PROGRESS);
+				sendProgress(currentProgress);
 				output.write(data, 0, count);
 			}
-
-		} catch (Exception e) {
-			errorMessage = context.getString(R.string.fileException);
-			sendMessage(STATUS_ERROR, errorMessage, ERROR);
-			return (null);
-		} finally {
-			try {
-				output.flush();
-				output.close();
-				input.close();
-			} catch (IOException e) {
-				errorMessage = context.getString(R.string.fileException);
-				sendMessage(STATUS_ERROR, errorMessage, ERROR);
-				return null;
-			}
+			output.flush();
+			output.close();
+			input.close();
+		} catch (IOException e) {
+			result.putString(RESULT_TYPE, ERROR);
+			result.putString(ERROR,
+					context.getResources().getString(R.string.fileException));
+			return result;
 		}
-		handler.sendEmptyMessage(STATUS_DOWNLOADED);
-		status = STATUS_DOWNLOADED;
-		return null;
+		result.putString(RESULT_TYPE, PROGRESS);
+		result.putInt(PROGRESS, STATUS_FINISHED);
+		return result;
 	}
 
-	private void sendMessage(int what, String data, String key) {
-		String sendingData = data;
-		Message message = new Message();
-		Bundle bundle = new Bundle();
-		bundle.putString(key, sendingData);
-		message.setData(bundle);
-		message.what = what;
-		handler.sendMessage(message);
+	@Override
+	protected void onStartLoading() {
+		forceLoad();
 	}
 
-	protected int getStatus() {
-		return status;
+	@Override
+	public void onCanceled(Bundle data) {
+		super.onCanceled(data);
 	}
 
-	protected void setHandler(Handler handler) {
-		this.handler = handler;
+	@Override
+	protected void onStopLoading() {
+		super.onStopLoading();
+		cancelLoad();
 	}
+
+	@Override
+	protected void onReset() {
+		super.onReset();
+		onStopLoading();
+	}
+
 }
