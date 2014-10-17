@@ -16,7 +16,6 @@ import android.os.Environment;
 
 public class ImageLoader extends AsyncTaskLoader<Bundle> {
 
-	protected final static String URL = "url";
 	protected final static String RESULT_TYPE = "result";
 	protected final static int STATUS_FINISHED = 101;
 	protected final static String ERROR = "error";
@@ -65,7 +64,7 @@ public class ImageLoader extends AsyncTaskLoader<Bundle> {
 			output = new FileOutputStream(path);
 			long total = 0;
 			int count;
-			byte data[] = new byte[1024 * 4];
+			byte data[] = new byte[8192];
 			while ((count = input.read(data)) != -1) {
 				currentProgress = (int) (100d * total / lenghtOfFile);
 				total += count;
@@ -87,8 +86,13 @@ public class ImageLoader extends AsyncTaskLoader<Bundle> {
 	}
 
 	@Override
-	protected void onStartLoading() {
-		forceLoad();
+	public void deliverResult(Bundle data) {
+		if (isReset()) {
+			return;
+		}
+		if (isStarted()) {
+			super.deliverResult(data);
+		}
 	}
 
 	@Override

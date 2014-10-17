@@ -42,6 +42,16 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 		statLabel = (TextView) findViewById(R.id.statusLabel);
 		button = (Button) findViewById(R.id.button);
 		button.setOnClickListener(this);
+		try {
+			url = new URL(getString(R.string.adress));
+		} catch (MalformedURLException e) {
+			Toast.makeText(getApplicationContext(),
+					getString(R.string.malformedURLException),
+					Toast.LENGTH_LONG).show();
+			return;
+		}
+
+		loader = getLoaderManager().initLoader(LOADER_ID, null, this);
 
 		path = Environment.getExternalStorageDirectory() + "/"
 				+ Uri.parse(getString(R.string.adress)).getLastPathSegment();
@@ -50,12 +60,12 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 				.getAbsolutePath(), Uri.parse(getString(R.string.adress))
 				.getLastPathSegment());
 		if (file.exists()) {
-			progressBar.setVisibility(ProgressBar.INVISIBLE);
-			button.setEnabled(true);
-			button.setText(R.string.open);
-			statLabel.setText(R.string.downloaded);
-			downloaded = true;
-			return;
+			 progressBar.setVisibility(ProgressBar.INVISIBLE);
+			 button.setEnabled(true);
+			 button.setText(R.string.open);
+			 statLabel.setText(R.string.downloaded);
+			 downloaded = true;
+			 return;
 		}
 
 		progressBar.setVisibility(ProgressBar.INVISIBLE);
@@ -84,7 +94,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 		intent.setDataAndType(uri, "image/*");
 		startActivity(intent);
 	}
-
+	
 	@Override
 	public Loader<Bundle> onCreateLoader(int id, Bundle args) {
 		loader = new ImageLoader(this, url);
@@ -93,15 +103,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 
 	public void onClick(View v) {
 		if (!downloaded) {
-			try {
-				url = new URL(getString(R.string.adress));
-			} catch (MalformedURLException e) {
-				Toast.makeText(getApplicationContext(),
-						getString(R.string.malformedURLException),
-						Toast.LENGTH_LONG).show();
-				return;
-			}
-			loader = getLoaderManager().initLoader(LOADER_ID, null, this);
+			loader.forceLoad();
 		} else
 			openFile(path);
 	}
@@ -111,12 +113,12 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 	}
 
 	@Override
-	public void onLoadFinished(Loader<Bundle> arg0, Bundle msg) {
-		String response = msg.getString(ImageLoader.RESULT_TYPE);
+	public void onLoadFinished(Loader<Bundle> arg0, Bundle message) {
+		String response = message.getString(ImageLoader.RESULT_TYPE);
 		switch (response) {
 		case ImageLoader.PROGRESS: {
 
-			int progress = msg.getInt(ImageLoader.PROGRESS);
+			int progress = message.getInt(ImageLoader.PROGRESS);
 			if (progress == ImageLoader.STATUS_FINISHED) {
 				progressBar.setVisibility(ProgressBar.INVISIBLE);
 				button.setEnabled(true);
@@ -138,7 +140,8 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 				file.delete();
 			}
 			Toast.makeText(getApplicationContext(),
-					msg.getString(ImageLoader.ERROR), Toast.LENGTH_LONG).show();
+					message.getString(ImageLoader.ERROR), Toast.LENGTH_LONG)
+					.show();
 			button.setEnabled(true);
 			button.setText(R.string.download);
 			progressBar.setVisibility(ProgressBar.INVISIBLE);
