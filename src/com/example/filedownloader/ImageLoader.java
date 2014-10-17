@@ -8,13 +8,12 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.net.URLConnection;
 
-import android.content.AsyncTaskLoader;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 
-public class ImageLoader extends AsyncTaskLoader<Bundle> {
+public class ImageLoader extends ExtendedAsyncTaskLoader {
 
 	protected final static String RESULT_TYPE = "result";
 	protected final static int STATUS_FINISHED = 101;
@@ -26,14 +25,11 @@ public class ImageLoader extends AsyncTaskLoader<Bundle> {
 	private OutputStream output;
 	private URLConnection connection;
 	private int currentProgress;
-	private String path;
 
 	public ImageLoader(Context context, URL url) {
 		super(context);
 		this.context = context;
 		this.url = url;
-		path = Environment.getExternalStorageDirectory() + "/"
-				+ Uri.parse(url.toString()).getLastPathSegment();
 
 	}
 
@@ -61,7 +57,9 @@ public class ImageLoader extends AsyncTaskLoader<Bundle> {
 		try {
 			int lenghtOfFile = connection.getContentLength();
 			input = new BufferedInputStream(url.openStream(), 1024);
-			output = new FileOutputStream(path);
+			output = new FileOutputStream(
+					Environment.getExternalStorageDirectory() + "/"
+							+ Uri.parse(url.toString()).getLastPathSegment());
 			long total = 0;
 			int count;
 			byte data[] = new byte[8192];
@@ -83,33 +81,6 @@ public class ImageLoader extends AsyncTaskLoader<Bundle> {
 		result.putString(RESULT_TYPE, PROGRESS);
 		result.putInt(PROGRESS, STATUS_FINISHED);
 		return result;
-	}
-
-	@Override
-	public void deliverResult(Bundle data) {
-		if (isReset()) {
-			return;
-		}
-		if (isStarted()) {
-			super.deliverResult(data);
-		}
-	}
-
-	@Override
-	public void onCanceled(Bundle data) {
-		super.onCanceled(data);
-	}
-
-	@Override
-	protected void onStopLoading() {
-		super.onStopLoading();
-		cancelLoad();
-	}
-
-	@Override
-	protected void onReset() {
-		super.onReset();
-		onStopLoading();
 	}
 
 }
