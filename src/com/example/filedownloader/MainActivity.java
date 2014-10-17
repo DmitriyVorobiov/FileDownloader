@@ -60,12 +60,12 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 				.getAbsolutePath(), Uri.parse(getString(R.string.adress))
 				.getLastPathSegment());
 		if (file.exists()) {
-			 progressBar.setVisibility(ProgressBar.INVISIBLE);
-			 button.setEnabled(true);
-			 button.setText(R.string.open);
-			 statLabel.setText(R.string.downloaded);
-			 downloaded = true;
-			 return;
+			progressBar.setVisibility(ProgressBar.INVISIBLE);
+			button.setEnabled(true);
+			button.setText(R.string.open);
+			statLabel.setText(R.string.downloaded);
+			downloaded = true;
+			return;
 		}
 
 		progressBar.setVisibility(ProgressBar.INVISIBLE);
@@ -94,7 +94,7 @@ public class MainActivity extends Activity implements LoaderCallbacks<Bundle>,
 		intent.setDataAndType(uri, "image/*");
 		startActivity(intent);
 	}
-	
+
 	@Override
 	public Loader<Bundle> onCreateLoader(int id, Bundle args) {
 		loader = new ImageLoader(this, url);
